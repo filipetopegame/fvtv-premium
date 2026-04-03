@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FVTV PREMIUM</title>
+    <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root { --primary: #3b82f6; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        
+        body {
+            background-image: url('https://i.ibb.co/GQkmq6MY/FVTV-PREMIUM-2-0.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header { background: rgba(0, 0, 0, 0.9); padding: 15px; text-align: center; border-bottom: 2px solid var(--primary); position: relative; z-index: 10; }
+        .adm-gear { position: absolute; right: 15px; top: 18px; cursor: pointer; opacity: 0.3; transition: 0.3s; }
+        #salesScreen, #mainApp, #admPanel { flex: 1; display: none; overflow: hidden; }
+        #salesScreen { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+        .box-login { background: rgba(30, 41, 59, 0.9); padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 25px; width: 100%; max-width: 400px; text-align: center; backdrop-filter: blur(5px); }
+        .plan-card { background: rgba(30, 41, 59, 0.9); border: 1px solid #334155; padding: 15px; margin-bottom: 10px; border-radius: 12px; cursor: pointer; transition: 0.3s; width: 100%; max-width: 400px; text-align: center; backdrop-filter: blur(5px); }
+        .plan-card:hover { border-color: var(--primary); transform: scale(1.02); }
+        #mainApp { flex-direction: row; position: relative; }
+        #player { flex: 4; background: #000; } /* Aumentado para dar mais espaço ao player */
+        .list-container { flex: 1; background: rgba(17, 17, 17, 0.9); border-left: 1px solid #333; display: flex; flex-direction: column; min-width: 220px; max-width: 250px; backdrop-filter: blur(5px); } /* Largura reduzida */
+        
+        #displayList { flex: 1; overflow-y: auto; padding: 10px; }
+        
+        #displayList::-webkit-scrollbar { width: 5px; }
+        #displayList::-webkit-scrollbar-track { background: #1a1a1a; border-radius: 20px; }
+        #displayList::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 20px; }
+
+        #admPanel { padding: 20px; background: rgba(15, 23, 42, 0.95); flex-direction: column; overflow-y: auto; backdrop-filter: blur(10px); }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #334155; font-size: 12px; }
+        .btn { border:none; padding:8px; border-radius:6px; cursor:pointer; font-weight:bold; font-size: 11px; }
+        .btn-blue { background: var(--primary); color: #fff; }
+        .btn-green { background: #22c55e; color: #fff; }
+        .btn-red { background: #ef4444; color: #fff; }
+        
+        .modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; color:#000; padding:25px; border-radius:15px; z-index:1000; text-align:center; width: 340px; }
+        
+        .status-footer {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #fff;
+            display: none;
+            border: 1px solid var(--primary);
+            z-index: 100;
+        }
+
+        #btnVoltarMenu {
+            position: absolute;
+            top: 12px;
+            left: 15px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: 1px solid var(--primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            z-index: 20;
+            display: none;
+        }
+        
+        /* BOTÕES PEQUENOS AQUI */
+        .addon-btn { display: block; width: 100%; padding: 6px; margin-bottom: 6px; border-radius: 5px; text-decoration: none; font-weight: bold; text-align: center; transition: 0.3s; font-size: 10px; letter-spacing: 0.5px; }
+        .bg-torrentio { background: #6b21a8; color: white; }
+        .bg-superflix { background: #b91c1c; color: white; }
+    </style>
+</head>
+<body>
+<div class="header">FVTV PREMIUM <span class="adm-gear" onclick="abrirAdm()">⚙️</span></div>
+
+<button id="btnVoltarMenu" onclick="voltarAoMenu()">← Voltar ao Menu Inicial</button>
+
+<div id="salesScreen" style="display: flex;">
+    <div class="box-login">
+        <p style="color: #60a5fa; font-size: 12px; margin-bottom: 8px;">JÁ POSSUI ACESSO?</p>
+        <input type="text" id="loginInput" placeholder="Digite seu código" style="background:#000; color:#fff; width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #334155;">
+        <button class="btn btn-blue" style="width:100%" onclick="logar()">ENTRAR NO PLAYER</button>
+    </div>
+    <h3 style="margin-bottom:15px; text-shadow: 2px 2px 4px #000;">ASSINE AGORA</h3>
+    <div class="plan-card" onclick="abrirCadastro(25, '1 Mês')"><h4>1 MÊS PREMIUM</h4><p>R$ 25,00</p></div>
+    <div class="plan-card" onclick="abrirCadastro(50, '2 Meses')"><h4>2 MESES PREMIUM</h4><p>R$ 50,00</p></div>
+    <div class="plan-card" onclick="abrirCadastro(75, '3 Meses')"><h4>3 MESES PREMIUM</h4><p>R$ 75,00</p></div>
+    <button id="btnTeste" onclick="iniciarTeste()" style="background:rgba(0,0,0,0.6); border:1px solid #444; color:#fff; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; width:100%; max-width:400px;">TESTE GRÁTIS (4 HORAS)</button>
+</div>
+
+<div id="mainApp">
+    <div id="player"></div>
+    <div class="list-container">
+        <div id="displayList"></div>
+    </div>
+</div>
+
+<div id="statusFooter" class="status-footer">
+    📅 Vence em: <span id="valData">--/--</span> | 🕒 <span id="horaAtual">00:00:00</span>
+</div>
+
+<div id="admPanel">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>Gestão de Clientes</h2>
+        <button class="btn btn-blue" onclick="location.reload()">Sair do Painel</button>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Nome</th><th>Código</th><th>Pedido</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="admTableBody"></tbody>
+    </table>
+</div>
+
+<div id="modalCad" class="modal">
+    <h3>NOVO CADASTRO</h3>
+    <input type="text" id="cadNome" placeholder="Nome Completo" style="width:100%; padding:10px; margin-bottom:10px;">
+    <input type="text" id="cadCod" placeholder="Crie seu Código" style="width:100%; padding:10px; margin-bottom:10px;">
+    <button class="btn btn-blue" style="width:100%" onclick="gerarPagamento()">PROSSEGUIR</button>
+    <button onclick="fecharModais()" style="background:none; border:none; color:red; cursor:pointer; margin-top:10px;">Cancelar</button>
+</div>
+
+<div id="modalPix" class="modal">
+    <h3>PAGAMENTO PIX</h3>
+    <img id="qrCode" src="" alt="QR Code" style="width:180px; margin: 10px auto; display: block;">
+    <p id="pixPrice" style="font-weight:bold; font-size:22px; color:#22c55e;"></p>
+    <a id="zapLink" href="#" target="_blank" class="btn" style="background:#25d366; color:#fff; text-decoration:none; display:flex; align-items:center; justify-content:center; height:40px;">ENVIAR COMPROVANTE</a>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDKPnElj2EBY2Z-2YmrUP5E7ESjnFrJEdo",
+        authDomain: "fvtv-premium.firebaseapp.com",
+        databaseURL: "https://fvtv-premium-default-rtdb.firebaseio.com",
+        projectId: "fvtv-premium",
+        storageBucket: "fvtv-premium.firebasestorage.app",
+        messagingSenderId: "709954808127",
+        appId: "1:709954808127:web:a225917a5b8dce437f4b8a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const SITE_STREAM = "https://staging.strem.io/#/";
+
+    window.onload = function() {
+        const salvo = localStorage.getItem('fvtv_cod');
+        if(salvo) {
+            document.getElementById('loginInput').value = salvo;
+            logar();
+        }
+    }
+
+    function carregarLista() {
+        document.getElementById('player').innerHTML = `
+            <iframe src="${SITE_STREAM}" 
+                style="width:100%; height:100%; border:none;" 
+                allow="autoplay; fullscreen; clipboard-write; encrypted-media" 
+                allowfullscreen>
+            </iframe>`;
+
+        document.getElementById('displayList').innerHTML = `
+            <div style="text-align:center;">
+                <h3 style="color:var(--primary); font-size:11px; margin-bottom:10px;">🚀 ATIVADORES</h3>
+                
+                <a href="stremio://torrentio.strem.io/manifest.json" class="addon-btn bg-torrentio">1. FILMES 4K</a>
+                <a href="https://web.stremio.com/#/addons?addon=https://mycine.alwaysdata.net/manifest.json" class="addon-btn bg-superflix">2. ATIVAR 6(BR)</a>
+                <a href="https://web.stremio.com/#/addons?addon=https://thepiratebay-plus.strem.fun/manifest.json" class="addon-btn bg-superflix">2. THEPIRBAY(BR)</a>
+                <a href="https://web.stremio.com/#/addons?addon=https://torrentio.strem.fun/brazuca/manifest.json " class="addon-btn bg-superflix">2. TORRTBRAZU </a>
+                <a href="https://web.stremio.com/#/addons?addon=https://150203dd784e-cinetorrent-addon.baby-beamup.club/manifest.json " class="addon-btn bg-superflix">2. CINETO </a>
+                <a href="https://web.stremio.com/#/addons?addon=https://comet.elfhosted.com/manifest.json " class="addon-btn bg-superflix">2. COMET </a>
+                <a href="https://web.stremio.com/#/addons?addon=https://mediafusion.elfhosted.com/manifest.json" class="addon-btn bg-superflix">2. MIDIAFUSION </a>
+                <a href="https://web.stremio.com/#/addons?addon=https://68d69db7dc40-debrid-search.baby-beamup.club/manifest.json " class="addon-btn bg-superflix">2. DEBRID </a>
+                <a href="https://web.stremio.com/#/addons?addon=https://5a0d1888fa64-orion.baby-beamup.club/manifest.json " class="addon-btn bg-superflix">2. ORION </a>
+                <a href="https://web.stremio.com/#/addons?addon=https://torrentio.strem.fun/manifest.json " class="addon-btn bg-superflix">2.MANIFEST</a>
+                <a href="stremio://876378e2f893-braflix.baby-beamup.com/manifest.json" class="addon-btn btn-blue">3. BRAFLIX</a>
+                
+                <div style="margin-top:15px; padding:8px; border:1px dashed #444; border-radius:8px;">
+                    <p style="font-size:9px; color:#aaa;">⚠️ Erro de Servidor? Use Player Externo ou App.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function logar() {
+        const cod = document.getElementById('loginInput').value;
+        if(!cod) return alert("Digite seu código!");
+        
+        database.ref('clientes/' + cod).once('value').then((snapshot) => {
+            const data = snapshot.val();
+            if(data && data.status === 'Ativo') {
+                localStorage.setItem('fvtv_cod', cod);
+                document.getElementById('salesScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'flex';
+                document.getElementById('statusFooter').style.display = 'block';
+                document.getElementById('btnVoltarMenu').style.display = 'block';
+                document.getElementById('valData').innerText = data.vencimento;
+                carregarLista();
+                iniciarRelogio();
+            } else {
+                alert("Código inválido ou expirado!");
+                localStorage.removeItem('fvtv_cod');
+            }
+        });
+    }
+
+    function voltarAoMenu() {
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('statusFooter').style.display = 'none';
+        document.getElementById('btnVoltarMenu').style.display = 'none';
+        document.getElementById('salesScreen').style.display = 'flex';
+        document.getElementById('player').innerHTML = '';
+    }
+
+    function iniciarRelogio() {
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('horaAtual').innerText = now.toLocaleTimeString();
+        }, 1000);
+    }
+
+    function abrirAdm() {
+        const senha = prompt("Senha ADM:");
+        if(senha === "97035855") {
+            document.getElementById('salesScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('admPanel').style.display = 'flex';
+            carregarTabelaAdm();
+        } else if(senha !== null) {
+            alert("Senha incorreta!");
+        }
+    }
+
+    function carregarTabelaAdm() {
+        database.ref('clientes').on('value', (snapshot) => {
+            const tbody = document.getElementById('admTableBody');
+            tbody.innerHTML = '';
+            snapshot.forEach((child) => {
+                const c = child.val();
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${c.nome}</td>
+                        <td>${child.key}</td>
+                        <td>${c.plano}</td>
+                        <td>${c.vencimento}</td>
+                        <td><span style="color:${c.status==='Ativo'?'#22c55e':'#ef4444'}">${c.status}</span></td>
+                        <td>
+                            <button class="btn btn-green" onclick="alterarStatus('${child.key}', 'Ativo')">Ativar</button>
+                            <button class="btn btn-red" onclick="removerCliente('${child.key}')">Remover</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+    }
+
+    function alterarStatus(id, status) {
+        database.ref('clientes/' + id).update({ status: status });
+    }
+
+    function removerCliente(id) {
+        if(confirm("Remover este cliente?")) database.ref('clientes/' + id).remove();
+    }
+
+    function abrirCadastro(preco, plano) {
+        window.planoAtual = { preco, plano };
+        document.getElementById('modalCad').style.display = 'block';
+    }
+
+    function fecharModais() {
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+    }
+
+    function gerarPagamento() {
+        const nome = document.getElementById('cadNome').value;
+        const cod = document.getElementById('cadCod').value;
+        if(!nome || !cod) return alert("Preencha tudo!");
+
+        const venc = new Date();
+        venc.setMonth(venc.getMonth() + 1);
+        
+        database.ref('clientes/' + cod).set({
+            nome: nome,
+            plano: window.planoAtual.plano,
+            vencimento: venc.toLocaleDateString(),
+            status: 'Pendente'
+        }).then(() => {
+            document.getElementById('modalCad').style.display = 'none';
+            document.getElementById('pixPrice').innerText = "R$ " + window.planoAtual.preco.toFixed(2);
+            document.getElementById('qrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=PagamentoFVTV_${cod}`;
+            document.getElementById('zapLink').href = `https://wa.me/5521992976849?text=Olá, enviei o pagamento do código ${cod}`;
+            document.getElementById('modalPix').style.display = 'block';
+        });
+    }
+
+    function iniciarTeste() {
+        const testeExistente = localStorage.getItem('fvtv_teste_realizado');
+        if(testeExistente) {
+            alert("Você já utilizou seu teste grátis!");
+            document.getElementById('loginInput').value = testeExistente;
+            logar();
+            return;
+        }
+
+        const codTeste = "TESTE" + Math.floor(1000 + Math.random() * 9000);
+        const venc = new Date();
+        venc.setHours(venc.getHours() + 4);
+        
+        database.ref('clientes/' + codTeste).set({
+            nome: "Usuário Teste",
+            plano: "4 Horas Grátis",
+            vencimento: venc.toLocaleString(),
+            status: 'Ativo'
+        }).then(() => {
+            localStorage.setItem('fvtv_teste_realizado', codTeste);
+            localStorage.setItem('fvtv_cod', codTeste);
+            alert("Teste Ativado! Código: " + codTeste);
+            document.getElementById('loginInput').value = codTeste;
+            logar();
+        });
+    }
+</script>
+</body>
+</html>
